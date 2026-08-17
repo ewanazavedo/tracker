@@ -2,6 +2,7 @@
 import re
 import sqlite3
 from datetime import datetime, date, time
+from zoneinfo import ZoneInfo
 from pathlib import Path
 
 import pandas as pd
@@ -1034,7 +1035,7 @@ selected_tt = tt[tt["subject"].isin(selected_electives)].copy()
 
 # Today
 if page == "Today":
-    today = date.today()
+    today = datetime.now(ZoneInfo("Asia/Kolkata")).date()
     today_tt = selected_tt[selected_tt["date"] == today].copy()
 
     st.title("Today")    
