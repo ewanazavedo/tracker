@@ -1154,7 +1154,7 @@ elif page == "Attendance":
 
         selected_date = st.date_input(
             "Select class date",
-            value=date.today(),
+            value=datetime.now(ZoneInfo("Asia/Kolkata")).date(),
             min_value=available_dates[0],
             max_value=available_dates[-1],
         )
