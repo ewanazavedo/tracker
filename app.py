@@ -20,6 +20,29 @@ st.set_page_config(
     page_icon="📚",
     layout="wide",
 )
+# -----------------------------
+# Simple user login
+# -----------------------------
+
+if "user_id" not in st.query_params:
+    st.title("Welcome to RollCalls")
+
+    user_name = st.text_input(
+        "Enter your name / ID",
+        placeholder="e.g. Ewan"
+    ).strip()
+
+    if st.button(
+        "Continue",
+        type="primary",
+        disabled=not user_name
+    ):
+        st.query_params["user_id"] = user_name
+        st.rerun()
+
+    st.stop()
+
+USER_ID = st.query_params["user_id"].strip().lower()
 st.markdown("""
 <style>
 /* ---------- MESS MENU ---------- */
@@ -731,78 +754,119 @@ def get_conn():
 
 def init_db():
     conn = get_conn()
+
     conn.execute("""
-        CREATE TABLE IF NOT EXISTS settings (
-            key TEXT PRIMARY KEY,
-            value TEXT
+        CREATE TABLE IF NOT EXISTS user_settings (
+            user_id TEXT NOT NULL,
+            key TEXT NOT NULL,
+            value TEXT,
+            PRIMARY KEY (user_id, key)
         )
     """)
+
     conn.execute("""
-        CREATE TABLE IF NOT EXISTS attendance (
-            class_key TEXT PRIMARY KEY,
+        CREATE TABLE IF NOT EXISTS user_attendance (
+            user_id TEXT NOT NULL,
+            class_key TEXT NOT NULL,
             class_date TEXT NOT NULL,
             start_time TEXT NOT NULL,
             end_time TEXT NOT NULL,
             subject TEXT NOT NULL,
             faculty TEXT,
-            status TEXT NOT NULL
+            status TEXT NOT NULL,
+            PRIMARY KEY (user_id, class_key)
         )
     """)
+
     conn.commit()
     conn.close()
 
 def get_setting(key):
     conn = get_conn()
-    row = conn.execute("SELECT value FROM settings WHERE key = ?", (key,)).fetchone()
+
+    row = conn.execute(
+        """
+        SELECT value
+        FROM user_settings
+        WHERE user_id = ? AND key = ?
+        """,
+        (USER_ID, key)
+    ).fetchone()
+
     conn.close()
+
     return row["value"] if row else None
 
 def set_setting(key, value):
     conn = get_conn()
+
     conn.execute(
-        "INSERT OR REPLACE INTO settings(key, value) VALUES (?, ?)",
-        (key, value),
+        """
+        INSERT OR REPLACE INTO user_settings
+        (user_id, key, value)
+        VALUES (?, ?, ?)
+        """,
+        (USER_ID, key, value)
     )
+
     conn.commit()
     conn.close()
 
 def save_attendance(class_row, status):
-    if "attendance_records" not in st.session_state:
-        st.session_state.attendance_records = {}
-
     class_key = make_class_key(class_row)
 
-    st.session_state.attendance_records[class_key] = {
-        "class_key": class_key,
-        "class_date": class_row["date"].strftime("%Y-%m-%d"),
-        "start_time": class_row["start"],
-        "end_time": class_row["end"],
-        "subject": class_row["subject"],
-        "faculty": class_row["faculty"],
-        "status": status,
-    }
+    conn = get_conn()
+
+    conn.execute("""
+        INSERT OR REPLACE INTO user_attendance
+        (
+            user_id,
+            class_key,
+            class_date,
+            start_time,
+            end_time,
+            subject,
+            faculty,
+            status
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    """, (
+        USER_ID,
+        class_key,
+        class_row["date"].strftime("%Y-%m-%d"),
+        class_row["start"],
+        class_row["end"],
+        class_row["subject"],
+        class_row["faculty"],
+        status,
+    ))
+
+    conn.commit()
+    conn.close()
 
 
 def attendance_statuses():
-    if "attendance_records" not in st.session_state:
-        st.session_state.attendance_records = {}
+    conn = get_conn()
 
-    records = list(st.session_state.attendance_records.values())
+    rows = conn.execute(
+        """
+        SELECT
+            class_key,
+            class_date,
+            start_time,
+            end_time,
+            subject,
+            faculty,
+            status
+        FROM user_attendance
+        WHERE user_id = ?
+        """,
+        (USER_ID,)
+    ).fetchall()
 
-    if not records:
-        return pd.DataFrame(
-            columns=[
-                "class_key",
-                "class_date",
-                "start_time",
-                "end_time",
-                "subject",
-                "faculty",
-                "status",
-            ]
-        )
+    conn.close()
 
-    return pd.DataFrame(records)
+    return pd.DataFrame([dict(r) for r in rows])
 
 def get_mess_menu(pdf_path, target_date):
     days = [
@@ -1051,12 +1115,20 @@ if tt.empty:
     st.error("No timetable classes were found. Check timetable.xlsx.")
     st.stop()
 
-all_electives = get_electives(tt)
+all_electives = [
+    x for x in get_electives(tt)
+    if x.lower() != "independence day"
+]
 
-if "selected_electives" not in st.session_state:
-    st.session_state.selected_electives = []
+saved = get_setting("selected_electives")
 
-selected_electives = st.session_state.selected_electives
+if saved:
+    selected_electives = [
+        x for x in saved.split("|||")
+        if x
+    ]
+else:
+    selected_electives = []
 
 # Sidebar
 # Sidebar
@@ -1116,7 +1188,10 @@ if page == "Setup":
     )
 
     if st.button("Save & Build My Timetable", type="primary"):
-        st.session_state.selected_electives = new_selection
+        set_setting(
+    "selected_electives",
+    "|||".join(new_selection)
+)
         st.success("Your timetable has been updated.")
         st.rerun()
 
