@@ -767,29 +767,42 @@ def set_setting(key, value):
     conn.close()
 
 def save_attendance(class_row, status):
+    if "attendance_records" not in st.session_state:
+        st.session_state.attendance_records = {}
+
     class_key = make_class_key(class_row)
-    conn = get_conn()
-    conn.execute("""
-        INSERT OR REPLACE INTO attendance
-        (class_key, class_date, start_time, end_time, subject, faculty, status)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-    """, (
-        class_key,
-        class_row["date"].strftime("%Y-%m-%d"),
-        class_row["start"],
-        class_row["end"],
-        class_row["subject"],
-        class_row["faculty"],
-        status,
-    ))
-    conn.commit()
-    conn.close()
+
+    st.session_state.attendance_records[class_key] = {
+        "class_key": class_key,
+        "class_date": class_row["date"].strftime("%Y-%m-%d"),
+        "start_time": class_row["start"],
+        "end_time": class_row["end"],
+        "subject": class_row["subject"],
+        "faculty": class_row["faculty"],
+        "status": status,
+    }
+
 
 def attendance_statuses():
-    conn = get_conn()
-    rows = conn.execute("SELECT * FROM attendance").fetchall()
-    conn.close()
-    return pd.DataFrame([dict(r) for r in rows])
+    if "attendance_records" not in st.session_state:
+        st.session_state.attendance_records = {}
+
+    records = list(st.session_state.attendance_records.values())
+
+    if not records:
+        return pd.DataFrame(
+            columns=[
+                "class_key",
+                "class_date",
+                "start_time",
+                "end_time",
+                "subject",
+                "faculty",
+                "status",
+            ]
+        )
+
+    return pd.DataFrame(records)
 
 def get_mess_menu(pdf_path, target_date):
     days = [
@@ -1040,11 +1053,10 @@ if tt.empty:
 
 all_electives = get_electives(tt)
 
-saved = get_setting("selected_electives")
-if saved:
-    selected_electives = [x for x in saved.split("|||") if x]
-else:
-    selected_electives = []
+if "selected_electives" not in st.session_state:
+    st.session_state.selected_electives = []
+
+selected_electives = st.session_state.selected_electives
 
 # Sidebar
 # Sidebar
@@ -1104,7 +1116,7 @@ if page == "Setup":
     )
 
     if st.button("Save & Build My Timetable", type="primary"):
-        set_setting("selected_electives", "|||".join(new_selection))
+        st.session_state.selected_electives = new_selection
         st.success("Your timetable has been updated.")
         st.rerun()
 
@@ -1141,7 +1153,7 @@ if not selected_electives:
         type="primary",
         disabled=not new_selection
     ):
-        set_setting("selected_electives", "|||".join(new_selection))
+        st.session_state.selected_electives = new_selection
         st.success("Your timetable has been created.")
         st.rerun()
 
