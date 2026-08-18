@@ -4,6 +4,8 @@ import sqlite3
 from datetime import datetime, date, time
 from zoneinfo import ZoneInfo
 from pathlib import Path
+import pdfplumber
+from zoneinfo import ZoneInfo
 
 import pandas as pd
 import streamlit as st
@@ -20,7 +22,43 @@ st.set_page_config(
 )
 st.markdown("""
 <style>
+/* ---------- MESS MENU ---------- */
 
+.menu-day {
+    font-size: 20px;
+    font-weight: 700;
+    color: #a5b4fc;
+    margin: 8px 0 20px 0;
+}
+
+.mess-card {
+    width: 100%;
+    box-sizing: border-box;
+
+    background: rgba(255,255,255,0.045);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 16px;
+
+    padding: 18px 20px;
+    margin-bottom: 14px;
+}
+
+.mess-meal {
+    font-size: 12px;
+    font-weight: 700;
+    color: #a5b4fc;
+
+    text-transform: uppercase;
+    letter-spacing: 1px;
+
+    margin-bottom: 8px;
+}
+
+.mess-items {
+    font-size: 15px;
+    line-height: 1.6;
+    color: #e2e8f0;
+}
 /* ---------- SUBJECT RINGS ---------- */
 
 .subject-ring {
@@ -753,6 +791,83 @@ def attendance_statuses():
     conn.close()
     return pd.DataFrame([dict(r) for r in rows])
 
+def get_mess_menu(pdf_path, target_date):
+    days = [
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+        "Sunday"
+    ]
+
+    day_name = target_date.strftime("%A")
+
+    if day_name not in days:
+        return None
+
+    with pdfplumber.open(pdf_path) as pdf:
+        page = pdf.pages[0]
+
+        # Coordinates for the August 2026 IIM Bodh Gaya menu PDF
+        x = [100.7, 231.8, 456.0, 755.6, 984.1, 1339.3]
+
+        # Horizontal boundaries for Monday → Sunday
+        y = [
+            157.9,
+            238.2,
+            318.4,
+            406.7,
+            487.0,
+            567.2,
+            647.5,
+            742.5
+        ]
+
+        day_index = days.index(day_name)
+
+        meals = {}
+
+        meal_names = [
+            "Breakfast",
+            "Lunch",
+            "Snacks",
+            "Dinner"
+        ]
+
+        for i, meal in enumerate(meal_names, start=1):
+
+            crop = page.crop(
+                (
+                    x[i] + 2,
+                    y[day_index] + 2,
+                    x[i + 1] - 2,
+                    y[day_index + 1] - 2
+                )
+            )
+
+            text = crop.extract_text(
+                x_tolerance=2,
+                y_tolerance=3
+            )
+
+            if text:
+                text = " ".join(text.split())
+
+                text = text.replace('<div class="mess-items">', "")
+                text = text.replace("</div>", "")
+            else:
+                text = "Menu unavailable"
+
+            meals[meal] = text
+
+        return {
+            "day": day_name,
+            "date": target_date,
+            "meals": meals
+        }
+
 # -----------------------------
 # Timetable parser
 # -----------------------------
@@ -954,6 +1069,7 @@ with st.sidebar:
             "Attendance",
             "Timetable",
             "Subjects",
+            "Mess Menu",
             "Setup"
         ],
         label_visibility="collapsed",
@@ -1390,8 +1506,66 @@ Skipped: {int(subject_row["Skipped"])}
                     unsafe_allow_html=True
                 )
                 
+elif page == "Mess Menu":
 
+    st.title("Mess Menu")
+
+    # Always use Indian date
+    menu_today = datetime.now(
+        ZoneInfo("Asia/Kolkata")
+    ).date()
+
+    st.caption(
+        menu_today.strftime("%A, %d %B %Y")
+    )
+
+    # August 2026 menu PDF
+    menu_pdf = APP_DIR / "August Menu 2026.pdf"
+
+    if not menu_pdf.exists():
+
+        st.error(
+            "Mess menu PDF not found."
+        )
+
+    else:
+
+        menu = get_mess_menu(
+            menu_pdf,
+            menu_today
+        )
+
+        if menu is None:
+
+            st.info(
+                "No mess menu available for today."
+            )
+
+        else:
+
+            st.markdown(
+                f"""
+                <div class="menu-day">
+                    {menu["day"]}
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
+            for meal, items in menu["meals"].items():
+                clean_items = re.sub(r"<[^>]*>", "", str(items))
+                clean_items = " ".join(clean_items.split())
+
+                html = (
+                    f'<div class="mess-card">'
+                    f'<div class="mess-meal">{meal}</div>'
+                    f'<div class="mess-items">{clean_items}</div>'
+                    f'</div>'
+                )
+
+                st.markdown(html, unsafe_allow_html=True)
 # Safety fallback
 else:
     st.title("Attendance Tracker")
     st.write("Use the sidebar to navigate.")
+
