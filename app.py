@@ -16,7 +16,7 @@ DB_PATH = APP_DIR / "attendance.db"
 TIMETABLE_PATH = APP_DIR / "timetable.xlsx"
 
 st.set_page_config(
-    page_title="Attendance Tracker",
+    page_title="Tracker",
     page_icon="📚",
     layout="wide",
 )
@@ -1149,12 +1149,13 @@ with st.sidebar:
     page = st.radio(
         "Navigation",
         [
+            "Setup",
             "Today",
             "Attendance",
             "Timetable",
             "Subjects",
-            "Mess Menu",
-            "Setup"
+            "Mess Menu"
+            
         ],
         label_visibility="collapsed",
     )
@@ -1189,15 +1190,18 @@ if page == "Setup":
 
     if st.button("Save & Build My Timetable", type="primary"):
         set_setting(
-    "selected_electives",
-    "|||".join(new_selection)
-)
-        st.success("Your timetable has been updated.")
-        st.rerun()
+            "selected_electives",
+            "|||".join(new_selection)
+        )
+
+        st.success("✓ Your electives have been saved successfully!")
+        st.info("Your timetable is now personalized to your selected subjects.")
 
     st.divider()
+
     st.subheader("All electives found in the Excel")
     st.write(f"{len(all_electives)} selectable courses found.")
+
     for subject in all_electives:
         st.write(f"• {subject}")
 
@@ -1205,34 +1209,34 @@ if page == "Setup":
 
 # If no electives selected, guide user to setup.
 # First-run setup: show the elective selector immediately.
-if not selected_electives:
-    st.title("Welcome to your Attendance Tracker")
-    st.write(
-        "Select the electives that belong to you. "
-        "Sections such as Sec A/B/C are separate options."
-    )
+# if not selected_electives:
+#     st.title("Welcome to your Attendance Tracker")
+#     st.write(
+#         "Select the electives that belong to you. "
+#         "Sections such as Sec A/B/C are separate options."
+#     )
 
-    new_selection = st.multiselect(
-        "Your electives",
-        options=all_electives,
-        placeholder="Select your electives..."
-    )
+#     new_selection = st.multiselect(
+#         "Your electives",
+#         options=all_electives,
+#         placeholder="Select your electives..."
+#     )
 
-    if new_selection:
-        st.write("Selected:")
-        for subject in new_selection:
-            st.write(f"• {subject}")
+#     if new_selection:
+#         st.write("Selected:")
+#         for subject in new_selection:
+#             st.write(f"• {subject}")
 
-    if st.button(
-        "Save & Build My Timetable",
-        type="primary",
-        disabled=not new_selection
-    ):
-        st.session_state.selected_electives = new_selection
-        st.success("Your timetable has been created.")
-        st.rerun()
+#     if st.button(
+#         "Save & Build My Timetable",
+#         type="primary",
+#         disabled=not new_selection
+#     ):
+#         st.session_state.selected_electives = new_selection
+#         st.success("Your timetable has been created.")
+#         st.rerun()
 
-    st.stop() 
+#     st.stop() 
 
 selected_tt = tt[tt["subject"].isin(selected_electives)].copy()
 
