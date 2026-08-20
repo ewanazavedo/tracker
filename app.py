@@ -33,12 +33,13 @@ st.set_page_config(
 # Remember user login
 # -----------------------------
 
+# -----------------------------
+# Remember user login
+# -----------------------------
+
 from streamlit_cookies_controller import CookieController
 
 cookies = CookieController()
-
-if not cookies.ready():
-    st.stop()
 
 saved_user = cookies.get("user_id")
 
@@ -62,14 +63,13 @@ else:
 
         cookies.set(
             "user_id",
-            USER_ID,
-            max_age=60 * 60 * 24 * 365
+            USER_ID
         )
 
         st.rerun()
 
     st.stop()
-    
+
 st.markdown("""
 <style>
 /* ---------- MESS MENU ---------- */
