@@ -24,7 +24,12 @@ st.set_page_config(
 # Simple user login
 # -----------------------------
 
+# -----------------------------
+# Simple user login
+# -----------------------------
+
 if "user_id" not in st.query_params:
+
     st.title("Welcome to RollCalls")
 
     user_name = st.text_input(
@@ -37,12 +42,13 @@ if "user_id" not in st.query_params:
         type="primary",
         disabled=not user_name
     ):
-        st.query_params["user_id"] = user_name
+        st.query_params["user_id"] = user_name.lower()
         st.rerun()
 
     st.stop()
 
 USER_ID = st.query_params["user_id"].strip().lower()
+
 st.markdown("""
 <style>
 /* ---------- MESS MENU ---------- */
@@ -1157,6 +1163,7 @@ with st.sidebar:
             "Mess Menu"
             
         ],
+        index=0 if not get_setting("setup_complete") else 1,
         label_visibility="collapsed",
     )
 
@@ -1193,7 +1200,7 @@ if page == "Setup":
             "selected_electives",
             "|||".join(new_selection)
         )
-
+        set_setting("setup_complete", "1")
         st.success("✓ Your electives have been saved successfully!")
         st.info("Your timetable is now personalized to your selected subjects.")
 
