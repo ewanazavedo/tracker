@@ -3,3 +3,4 @@ pandas
 openpyxl
 icalendar
 pdfplumber
+streamlit-cookies-controller

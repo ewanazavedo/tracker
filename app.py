@@ -29,8 +29,23 @@ st.set_page_config(
 # Simple user login
 # -----------------------------
 
-if "user_id" not in st.query_params:
+# -----------------------------
+# Remember user login
+# -----------------------------
 
+from streamlit_cookies_controller import CookieController
+
+cookies = CookieController()
+
+if not cookies.ready():
+    st.stop()
+
+saved_user = cookies.get("user_id")
+
+if saved_user:
+    USER_ID = str(saved_user).strip().lower()
+
+else:
     st.title("Welcome to RollCalls")
 
     user_name = st.text_input(
@@ -43,13 +58,18 @@ if "user_id" not in st.query_params:
         type="primary",
         disabled=not user_name
     ):
-        st.query_params["user_id"] = user_name.lower()
+        USER_ID = user_name.lower()
+
+        cookies.set(
+            "user_id",
+            USER_ID,
+            max_age=60 * 60 * 24 * 365
+        )
+
         st.rerun()
 
     st.stop()
-
-USER_ID = st.query_params["user_id"].strip().lower()
-
+    
 st.markdown("""
 <style>
 /* ---------- MESS MENU ---------- */
