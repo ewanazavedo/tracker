@@ -1,5 +1,5 @@
-from streamlit_cookies_controller import CookieController
-cookies = CookieController()
+# from streamlit_cookies_controller import CookieController
+# cookies = CookieController()
 import re
 import sqlite3
 from datetime import datetime, date, time
