@@ -1,4 +1,5 @@
-
+from streamlit_cookies_controller import CookieController
+cookies = CookieController()
 import re
 import sqlite3
 from datetime import datetime, date, time
@@ -1152,20 +1153,30 @@ with st.sidebar:
 
     st.markdown("<div class='nav-label'>MENU</div>", unsafe_allow_html=True)
 
+    page_options = [
+        "Setup",
+        "Today",
+        "Attendance",
+        "Timetable",
+        "Subjects",
+        "Mess Menu"
+    ]
+
+    saved_page = get_setting("last_page")
+
+    if saved_page in page_options:
+        default_index = page_options.index(saved_page)
+    else:
+        default_index = 0 if not get_setting("setup_complete") else 1
+
     page = st.radio(
         "Navigation",
-        [
-            "Setup",
-            "Today",
-            "Attendance",
-            "Timetable",
-            "Subjects",
-            "Mess Menu"
-            
-        ],
-        index=0 if not get_setting("setup_complete") else 1,
+        page_options,
+        index=default_index,
         label_visibility="collapsed",
     )
+
+    set_setting("last_page", page)
 
     st.markdown("<div class='sidebar-spacer'></div>", unsafe_allow_html=True)
 
@@ -1366,12 +1377,74 @@ elif page == "Attendance":
 
     if available_dates:
 
-        selected_date = st.date_input(
-            "Select class date",
-            value=datetime.now(ZoneInfo("Asia/Kolkata")).date(),
-            min_value=available_dates[0],
-            max_value=available_dates[-1],
-        )
+        today_date = datetime.now(ZoneInfo("Asia/Kolkata")).date()
+
+        saved_edit_date = get_setting("edit_date")
+
+        if saved_edit_date:
+            st.session_state.edit_date = date.fromisoformat(saved_edit_date)
+        else:
+            st.session_state.edit_date = today_date
+
+        if st.session_state.edit_date < available_dates[0]:
+            st.session_state.edit_date = available_dates[0]
+
+        if st.session_state.edit_date > available_dates[-1]:
+            st.session_state.edit_date = available_dates[-1]
+
+        col1, col2, col3 = st.columns([1, 2, 1])
+
+        with col1:
+            if st.button("← Previous Date", use_container_width=True):
+                current_index = available_dates.index(
+                    st.session_state.edit_date
+                )
+
+                if current_index > 0:
+                    st.session_state.edit_date = available_dates[current_index - 1]
+
+                    set_setting(
+                        "edit_date",
+                        st.session_state.edit_date.isoformat()
+                    )
+
+                    st.rerun()
+
+        with col2:
+            selected_date = st.date_input(
+                "Select class date",
+                value=st.session_state.edit_date,
+                min_value=available_dates[0],
+                max_value=available_dates[-1],
+            )
+
+            st.session_state.edit_date = selected_date
+
+            set_setting(
+                "edit_date",
+                selected_date.isoformat()
+            )
+
+        with col3:
+            if st.button("Next Date →", use_container_width=True):
+                current_index = available_dates.index(
+                    st.session_state.edit_date
+                )
+
+                if current_index < len(available_dates) - 1:
+                    st.session_state.edit_date = available_dates[current_index + 1]
+
+                    set_setting(
+                        "edit_date",
+                        st.session_state.edit_date.isoformat()
+                    )
+
+                    st.rerun()
+
+        # Classes on selected date
+        date_classes = selected_tt[
+            selected_tt["date"] == selected_date
+        ].copy()
 
         # Classes on selected date
         date_classes = selected_tt[
