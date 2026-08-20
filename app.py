@@ -1,5 +1,5 @@
-# from streamlit_cookies_controller import CookieController
-# cookies = CookieController()
+from streamlit_cookies_controller import CookieController
+cookies = CookieController()
 import re
 import sqlite3
 from datetime import datetime, date, time
@@ -37,16 +37,16 @@ st.set_page_config(
 # Remember user login
 # -----------------------------
 
-from streamlit_cookies_controller import CookieController
+# -----------------------------
+# Remember user locally
+# -----------------------------
 
-cookies = CookieController()
+# -----------------------------
+# Simple user login
+# -----------------------------
 
-saved_user = cookies.get("user_id")
+if "user_id" not in st.query_params:
 
-if saved_user:
-    USER_ID = str(saved_user).strip().lower()
-
-else:
     st.title("Welcome to RollCalls")
 
     user_name = st.text_input(
@@ -59,16 +59,12 @@ else:
         type="primary",
         disabled=not user_name
     ):
-        USER_ID = user_name.lower()
-
-        cookies.set(
-            "user_id",
-            USER_ID
-        )
-
+        st.query_params["user_id"] = user_name.lower()
         st.rerun()
 
     st.stop()
+
+USER_ID = st.query_params["user_id"].strip().lower()
 
 st.markdown("""
 <style>
